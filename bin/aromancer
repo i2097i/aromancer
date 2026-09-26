@@ -1,0 +1,31 @@
+#! /usr/bin/env ruby
+
+=begin
+
+  aromancer
+
+  entry point for aromancer.
+
+  by i2097i
+
+=end
+
+require :aromancer.to_s
+
+puts ARGV
+font = TTY::Font.new(:standard)
+title = font.write("aromancer", letter_spacing: 1)
+print TTY::Box.frame(
+  *(title.split("\n") +
+  ["dood", "wut"]),
+  width: TTY::Screen.width,
+  height: TTY::Screen.height,
+  align: :center,
+  title: {top_left: Aromancer.to_s, bottom_right: Aromancer::VERSION}
+)
+
+Aromancer::Prompt.say("$ >[Aromancer]> : ")
+        # if Aro::Mancy::YES.to_s != Aos::S.p.ask("\n#{Aro::Mancy::PS1}$")
+        #   Aro::P.say(I18n.t("cli.messages.understood", name: Aro::Mancy.teck.name))
+        #   exit(CLI::EXIT_CODES[:SUCCESS])
+        # end

@@ -24,31 +24,29 @@ Gem::Specification.new do |spec|
   spec.license       = "MIT"
   spec.files         = `git ls-files`.split("\n").reject{|p| p.match?(/^(spec|.release|.*.gem$)/)}
   spec.bindir        = "bin"
-  spec.executables   = []
-  spec.require_paths = []
-  spec.required_ruby_version = ">= 3.4.7"
-
-  # spec.metadata["allowed_push_host"] = "TODO: Set to your gem server 'https://example.com'"
-  # spec.metadata["homepage_uri"] = spec.homepage
-  # spec.metadata["source_code_uri"] = "TODO: Put your gem's public repo URL here."
-  # spec.metadata["changelog_uri"] = "TODO: Put your gem's CHANGELOG.md URL here."
-
-  # Specify which files should be added to the gem when it is released.
-  # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
-  gemspec = File.basename(__FILE__)
-  spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
-    ls.readlines("\x0", chomp: true).reject do |f|
-      (f == gemspec) ||
-        f.start_with?(*%w[bin/ Gemfile .gitignore])
-    end
-  end
-  spec.bindir = "exe"
-  spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
+  spec.executables   = ["aromancer"]
   spec.require_paths = ["lib"]
+  spec.required_ruby_version = ">= 4.0.7"
 
-  # Uncomment to register a new dependency of your gem
-  # spec.add_dependency "example-gem", "~> 1.0"
+  # development gems
+  spec.add_development_dependency "irb", "~> 1.18"
+  spec.add_development_dependency "bundler", "~> 4.0.21"
+  spec.add_development_dependency "listen", "~> 3.10"
+  spec.add_development_dependency "rake", "~> 13.4.2"
+  spec.add_development_dependency "rspec", "~> 3.13.2"
 
-  # For more information and examples about making a new gem, check out our
-  # guide at: https://bundler.io/guides/creating_gem.html
+  # runtime gems
+  spec.add_runtime_dependency     "i18n", "~> 1.15.2"
+  spec.add_runtime_dependency     "faraday", "~> 2.14.4"
+  spec.add_runtime_dependency     "sqlite3", "~> 2.9.6"
+  spec.add_runtime_dependency     "activerecord", "~> 8.1.4"
+  spec.add_runtime_dependency     "websocket-client-simple", "~> 0.9.0"
+
+  spec.add_runtime_dependency     "tty-box", "~> 0.7.0"
+  spec.add_runtime_dependency     "tty-color", "~> 0.6.0"
+  spec.add_runtime_dependency     "tty-cursor", "~> 0.7.1"
+  spec.add_runtime_dependency     "tty-font", "~> 0.5.0"
+  spec.add_runtime_dependency     "tty-table", "~> 0.12.0"
+  spec.add_runtime_dependency     "tty-prompt", "~> 0.23.1"
+  spec.add_runtime_dependency     "tty-screen", "~> 0.8.2"
 end

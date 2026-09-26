@@ -1,8 +1,18 @@
 # frozen_string_literal: true
 
-require_relative "aromancer/version"
+=begin
+
+  aromancer.rb
+
+  aromancer.
+
+  by i2097i
+
+=end
+
+require_relative :reiquire.to_s
+Reiquire::aromancer
 
 module Aromancer
-  class Error < StandardError; end
-  # Your code goes here...
+
 end

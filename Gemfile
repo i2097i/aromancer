@@ -1,9 +1,6 @@
-# frozen_string_literal: true
-
-source "https://rubygems.org"
-
-# Specify your gem's dependencies in aromancer.gemspec
+plugin 'bundler-graph'
+source :"https://rubygems.org".to_s
 gemspec
 
-gem "irb"
-gem "rake", "~> 13.0"
+# do not modify
+# add dependencies to the gemspec
