@@ -9,11 +9,11 @@ describe "authentication" do
 
   context "create new account" do
     it "runs tests" do
-      puts Faraday.new(
-        url: SERVER_URL,
-        # params: {param: '1'},
-        headers: HEADERS
-      ).get("/players").status
+      # puts Faraday.new(
+      #   url: SERVER_URL,
+      #   # params: {param: '1'},
+      #   headers: HEADERS
+      # ).get("/players").status
 
       true
     end

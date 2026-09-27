@@ -1,1 +1,58 @@
 en:
+  shared:
+    confirm: "are you sure?"
+    empty: "there is nothing here"
+    key_escape: "escape key pressed."
+    key_press: "press enter to continue: "
+    inturrupt: "exiting due to user inturrupt..."
+    reader_initialized: "input reader initialized."
+    welcome: "welcome to aromancer. loading v%{version}..."
+    navigate: "navigate to %{route}."
+    exit: "exit"
+  routes:
+    authentication:
+      failed: "authentication failed (%{status}). %{error}"
+      sign_in: "sign in"
+      sign_up: "sign up"
+      title: "authenticate"
+      subtitle: ""
+    main_menu:
+      title: "main menu"
+      subtitle: ""
+      new_game: "new game"
+      load_game: "load game"
+      sign_out: "sign out"
+      not_signed_in: "not signed in. invalid session. redirecting to authentication."
+    new_game:
+      player_count: "number of players"
+      story_count: "number of stories"
+      starting: "starting new game..."
+      status: "status"
+    legend:
+      title: "legend"
+      subtitle: "%{subtitle}"
+      arena_failed: "arena failed to load (%{status}). %{error}"
+      scroll: "scroll"
+      spoken_words: "scroll words"
+      legend_complete: "legend_complete"
+      words: "words"
+      sentences: "sentences"
+      hide_signed_sentences: "hide signed sentences"
+      signed_sentences: "signed sentences"
+      unsigned_sentences: "unsigned sentences"
+      spoken_words: "spoken words"
+      unspoken_words: "unspoken words"
+      players: "players"
+      place_on_scroll: "place %{word} on the scroll."
+      options_for_word: "available options for the %{word} word."
+      last_error: "last error"
+    legends:
+      help: ""
+    legend_menu:
+      title: "menu"
+      subtitle: ""
+      help: ""
+    stream:
+      title: "stream"
+
+

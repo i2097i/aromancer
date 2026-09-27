@@ -9,18 +9,19 @@
 =end
 
 # dependencies
-require :active_record.to_s
-require :"active_record/schema_dumper".to_s
+require :"active_support/all".to_s
 require :i18n.to_s
 require :faraday.to_s
-require :"websocket-client-simple".to_s
+require :fileutils.to_s
+# require :"websocket-client-simple".to_s
 
-require :"tty-box".to_s # draw box shapes
-require :"tty-color".to_s # detect color support
+# require :"tty-box".to_s # draw box shapes
+# require :"tty-color".to_s # detect color support
 require :"tty-cursor".to_s # cursor support
 require :"tty-font".to_s # large stylized text
 require :"tty-table".to_s # render tables
 require :"tty-prompt".to_s # main user interaction
+# require :"tty-reader".to_s # more granular user input
 require :"tty-screen".to_s # detect screen dimensions
 
 module Reiquire

@@ -2,16 +2,16 @@
 
 =begin
 
-  aromancer.rb
+  prompt.rb
 
-  aromancer.
+  tty-prompt gem wrapper.
 
   by i2097i
 
 =end
 
 module Aromancer
-  class P
+  class Prompt
     include Singleton
 
     attr_accessor :prompt
@@ -21,11 +21,11 @@ module Aromancer
     end
 
     def self.p
-      Aro::Prompt.instance.prompt
+      Aromancer::Prompt.instance.prompt
     end
 
     def self.say(message)
-      p.say(message)
+      (message.kind_of?(String) ? message.split("\n").each{|l| p.say(l.to_s.center(TTY::Screen.width))} : message)
     end
   end
 

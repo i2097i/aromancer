@@ -4,7 +4,8 @@ listener = Listen.to(*[:lib.to_s, :bin.to_s, :spec.to_s, :locale.to_s], only: /[
   # puts modified
   # puts added
   # puts removed 
-  system("exec rake make")
+  # system("exec rake make")
+  system("exec rake install")
 }
 listener.start
 sleep
