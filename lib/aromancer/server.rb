@@ -14,7 +14,7 @@ module Aromancer
   class Server
     include Singleton
     SERVER_HOST_FILE = ".aromancer_server_host"
-    SERVER_URL = File.exist?(SERVER_HOST_FILE) ? File.read(SERVER_HOST_FILE) : "http://localhost:3000"
+    SERVER_URL = File.exist?(SERVER_HOST_FILE) ? File.read(SERVER_HOST_FILE).gsub("\n", "") : "http://localhost:3000"
     HEADERS = { "Content-Type": "application/json" }
 
     class InternalError
