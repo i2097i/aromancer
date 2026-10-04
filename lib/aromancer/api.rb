@@ -38,6 +38,8 @@ module Aromancer
         !error_body.nil? &&
         error_body.keys.include?(:error_message.to_s) &&
         error_body["error_message"] == "not signed in"
+
+      Aromancer::Storage.instance.clear_cache! if signed_out
       Aromancer::Storage.set_signed_out_flag(signed_out)
     end
 
@@ -126,7 +128,11 @@ module Aromancer
     end
 
     def self.set_active_legend_id(active_legend_id)
-      result = Aromancer::Server.update_player({player: {active_legend_id: active_legend_id, status: active_legend_id.nil? ? :lobby : :playing}})
+      result = Aromancer::Server.update_player({player: {
+        active_legend_id: active_legend_id,
+        status: active_legend_id.nil? ? :lobby : :playing
+      }})
+
       if result.status == 200
         response = JSON.parse(result.body)
         Aromancer::Storage.set_player(response)

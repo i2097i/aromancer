@@ -7,7 +7,11 @@ en:
     inturrupt: "exiting due to user inturrupt..."
     reader_initialized: "input reader initialized."
     welcome: "welcome to aromancer. loading v%{version}..."
+    server_url: "current server: %{url}"
     navigate: "navigate to %{route}."
+    update_cancel: "update cancelled."
+    update_confirm: "confirm update [%{new_value}] (enter y): "
+    back: "back"
     exit: "exit"
   routes:
     authentication:
@@ -17,17 +21,28 @@ en:
       title: "authenticate"
       subtitle: ""
     main_menu:
+      configure: "configure"
       title: "main menu"
       subtitle: ""
       new_game: "new game"
       load_game: "load game"
+      player_count: "enter player count (1-2): "
       sign_out: "sign out"
       not_signed_in: "not signed in. invalid session. redirecting to authentication."
+    configure:
+      title: "configure %{name}"
+      new_host: "enter new server host: "
+      new_port: "enter new server port: "
+      force_ssl_toggle: "force ssl preference toggled to %{value}"
+      server_host: "host (%{stored})"
+      server_port: "port (%{stored})"
+      force_ssl: "force ssl (%{stored})"
     new_game:
       player_count: "number of players"
       story_count: "number of stories"
       starting: "starting new game..."
       status: "status"
+      cancelled: "cancelled. game not created."
     legend:
       title: "legend"
       subtitle: "%{subtitle}"

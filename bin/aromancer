@@ -12,15 +12,4 @@
 
 require :aromancer.to_s
 
-puts Aromancer::Server::SERVER_URL
-begin
-  Aromancer::Prompt.say(I18n.t("shared.welcome", version: Aromancer::VERSION))
-  if Aromancer::Storage.get_player
-    Aromancer::Routes.main_menu
-  else
-    Aromancer::Routes.authentication
-  end
-rescue Interrupt => e
-  exit
-end
-
+Aromancer::Cli.run

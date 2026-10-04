@@ -13,7 +13,7 @@ require :"active_support/all".to_s
 require :i18n.to_s
 require :faraday.to_s
 require :fileutils.to_s
-# require :"websocket-client-simple".to_s
+require :"websocket-client-simple".to_s
 
 # require :"tty-box".to_s # draw box shapes
 # require :"tty-color".to_s # detect color support

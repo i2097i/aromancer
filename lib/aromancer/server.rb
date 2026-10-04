@@ -13,8 +13,9 @@
 module Aromancer
   class Server
     include Singleton
-    SERVER_HOST_FILE = ".aromancer_server_host"
-    SERVER_URL = File.exist?(SERVER_HOST_FILE) ? File.read(SERVER_HOST_FILE).gsub("\n", "") : "http://localhost:3000"
+
+    DEVELOP_SERVER_URL = "http://localhost:3000"
+
     HEADERS = { "Content-Type": "application/json" }
 
     class InternalError
@@ -23,12 +24,13 @@ module Aromancer
       def initialize(status: -1, body: {})
         @status = status
         @body = body
+        Aromancer::Storage.instance.clear_cache!
       end
 
       def self.build(e)
         InternalError.new(
           status: -1,
-          body: {error_message: e.message[0..78]}.to_json
+          body: {error_message: e.inspect.to_s}.to_json
         )
       end
     end
@@ -42,7 +44,7 @@ module Aromancer
     def self.sign_in(email_address, password)
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: {
             email_address: email_address,
@@ -57,7 +59,7 @@ module Aromancer
     def self.sign_up(email_address, password, password_confirmation)
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: {
             user: {
@@ -75,7 +77,7 @@ module Aromancer
     def self.sign_out
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: api_key_param
         ).delete("/session")
@@ -87,7 +89,7 @@ module Aromancer
     def self.create_legend(params)
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: params.merge(api_key_param)
         ).post("/legends")
@@ -99,7 +101,7 @@ module Aromancer
     def self.get_legends
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: api_key_param
         ).get("/legends")
@@ -111,7 +113,7 @@ module Aromancer
     def self.update_player(params)
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: params.merge(api_key_param)
         ).put("/players/#{Aromancer::Storage.get_player["id"]}")
@@ -125,7 +127,7 @@ module Aromancer
 
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: api_key_param
         ).get("/legends/#{legend_id}/arena")
@@ -139,7 +141,7 @@ module Aromancer
 
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: api_key_param
         ).get("/legends/#{legend_id}/stream")
@@ -152,7 +154,7 @@ module Aromancer
       legend_id = Aromancer::Storage.get_player["active_legend_id"]
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: api_key_param
         ).get("/legends/#{legend_id}/words/#{selected_word_id}/possibilities")
@@ -165,7 +167,7 @@ module Aromancer
       legend_id = Aromancer::Storage.get_player["active_legend_id"]
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: params.merge(api_key_param)
         ).post("/legends/#{legend_id}/arena")
@@ -178,7 +180,7 @@ module Aromancer
       legend_id = Aromancer::Storage.get_player["active_legend_id"]
       begin
         Faraday.new(
-          url: SERVER_URL,
+          url: Aromancer::Storage.get_server_url,
           headers: HEADERS,
           params: params.merge(api_key_param)
         ).put("/legends/#{legend_id}/arena")

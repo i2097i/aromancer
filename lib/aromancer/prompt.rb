@@ -17,6 +17,10 @@ module Aromancer
     attr_accessor :prompt
 
     def initialize
+      reload!
+    end
+
+    def reload!
       self.prompt = TTY::Prompt.new
     end
 

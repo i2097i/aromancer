@@ -30,7 +30,7 @@ Gem::Specification.new do |spec|
 
   # development gems
   spec.add_development_dependency "irb", "~> 1.18"
-  spec.add_development_dependency "bundler", "~> 4.0.21"
+  spec.add_development_dependency "bundler", "~> 4.0.22"
   spec.add_development_dependency "listen", "~> 3.10"
   spec.add_development_dependency "rake", "~> 13.4.2"
   spec.add_development_dependency "rspec", "~> 3.13.2"
@@ -40,7 +40,7 @@ Gem::Specification.new do |spec|
   spec.add_runtime_dependency     "i18n", "~> 1.15.2"
   spec.add_runtime_dependency     "faraday", "~> 2.14.4"
   spec.add_runtime_dependency     "fileutils", "~> 1.8.0"
-  # spec.add_runtime_dependency     "websocket-client-simple", "~> 0.9.0"
+  spec.add_runtime_dependency     "websocket-client-simple", "~> 0.9.0"
 
   # spec.add_runtime_dependency     "tty-box", "~> 0.7.0"
   # spec.add_runtime_dependency     "tty-color", "~> 0.6.0"
