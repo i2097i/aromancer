@@ -12,6 +12,8 @@ module Aromancer
   class Storage
     include Singleton
 
+    DEFAULT_SERVER = "http://aromancer.com"
+
     attr_accessor :storage_open, :cache
 
     def initialize
@@ -126,15 +128,16 @@ module Aromancer
       uri = URI.parse(server_url)
       if uri.kind_of?(URI::HTTP) or uri.kind_of?(URI::HTTPS)
         URI_KEYS.each{|k|
+          uri.kind_of?(URI::HTTP) && get_preference(:force_ssl) ? toggle_force_ssl : nil
           Aromancer::Storage.instance.set_key("server_url_#{k}", uri.select(k).first)
         }
       else
-        set_server_url(Aromancer::Server::DEVELOP_SERVER_URL)
+        set_server_url(DEFAULT_SERVER)
       end
     end
 
     def self.get_server_url
-      set_server_url(Aromancer::Server::DEVELOP_SERVER_URL) if URI_KEYS.all?{|k| Aromancer::Storage.instance.get_key("server_url_#{k}").nil?}
+      set_server_url(DEFAULT_SERVER) if URI_KEYS.all?{|k| Aromancer::Storage.instance.get_key("server_url_#{k}").nil?}
       URI.parse(URI_KEYS.map{|k|
         c = Aromancer::Storage.instance.get_key("server_url_#{k}")
         case k

@@ -21,9 +21,9 @@ module Aromancer
 
     attr_accessor :socket
 
-    def connect(api_key)
+    def connect
       return unless self.socket.nil?
-      self.socket = WebSocket::Client::Simple.connect("#{Aromancer::Storage.get_websocket_url}?api_key=#{api_key}")
+      self.socket = WebSocket::Client::Simple.connect(Aromancer::Storage.get_websocket_url, {headers: Aromancer::Server.auth_header})
       self.socket.on :message do |msg|
         payload = JSON.parse(msg.data) rescue msg.data
         if !payload.nil? &&
@@ -43,7 +43,7 @@ module Aromancer
       self.socket.on :open do
         r = {
           command: "subscribe",
-          identifier: {channel: "PlayerChannel", api_key: api_key}.to_json
+          identifier: {channel: "PlayerChannel"}.to_json
         }.to_json
         Aromancer::Websocket.instance.socket.send(r)
       end

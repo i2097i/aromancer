@@ -45,14 +45,6 @@ module Aromancer
 
     def start_ui_thread
       if @busy || Time.now - @last_render < 2
-        # Thread.new{
-        #   while Aromancer::Cli.instance.busy do
-        #     if Time.now - Aromancer::Cli.instance.last_render > 5
-        #       sleep(2)
-        #       Aromancer::Cli.instance.start_ui_thread
-        #     end
-        #   end
-        # }.join
         return
       end
       @busy = true
@@ -96,7 +88,7 @@ module Aromancer
           elsif !player["api_key"].nil?
             # attempt websocket connection
             # puts :ws_thread
-            Aromancer::Websocket.instance.connect(player["api_key"])
+            Aromancer::Websocket.instance.connect
           end
 
           sleep(4)

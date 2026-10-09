@@ -61,6 +61,7 @@ module Aromancer
         Aromancer::Storage.set_signed_out_flag(false)
         return main_menu
       end
+
       Aromancer::Prompt.say(I18n.t("shared.navigate", route: :authentication))
 
       choices = [
