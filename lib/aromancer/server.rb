@@ -14,8 +14,6 @@ module Aromancer
   class Server
     include Singleton
 
-    DEVELOP_SERVER_URL = "http://localhost:3000"
-
     HEADERS = { "Content-Type": "application/json" }
 
     class InternalError
@@ -35,10 +33,8 @@ module Aromancer
       end
     end
 
-    def self.api_key_param
-      {
-        api_key: Aromancer::Storage.get_player["api_key"]
-      }
+    def self.auth_header
+      {"Authorization": "Bearer #{Aromancer::Storage.get_player["api_key"]}"}
     end
 
     def self.sign_in(email_address, password)
@@ -78,8 +74,7 @@ module Aromancer
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: api_key_param
+          headers: HEADERS.merge(auth_header),
         ).delete("/session")
       rescue StandardError => e
         InternalError.build(e)
@@ -90,8 +85,8 @@ module Aromancer
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: params.merge(api_key_param)
+          headers: HEADERS.merge(auth_header),
+          params: params
         ).post("/legends")
       rescue StandardError => e
         InternalError.build(e)
@@ -102,9 +97,19 @@ module Aromancer
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: api_key_param
+          headers: HEADERS.merge(auth_header),
         ).get("/legends")
+      rescue StandardError => e
+        InternalError.build(e)
+      end
+    end
+
+    def self.find_legends
+      begin
+        Faraday.new(
+          url: Aromancer::Storage.get_server_url,
+          headers: HEADERS.merge(auth_header),
+        ).get("/legends/find")
       rescue StandardError => e
         InternalError.build(e)
       end
@@ -114,8 +119,8 @@ module Aromancer
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: params.merge(api_key_param)
+          headers: HEADERS.merge(auth_header),
+          params: params
         ).put("/players/#{Aromancer::Storage.get_player["id"]}")
       rescue StandardError => e
         InternalError.build(e)
@@ -123,13 +128,13 @@ module Aromancer
     end
 
     def self.get_arena
-      legend_id = Aromancer::Storage.get_player["active_legend_id"]
+      legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
+      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
 
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: api_key_param
+          headers: HEADERS.merge(auth_header),
         ).get("/legends/#{legend_id}/arena")
       rescue StandardError => e
         InternalError.build(e)
@@ -137,13 +142,13 @@ module Aromancer
     end
 
     def self.get_stream
-      legend_id = Aromancer::Storage.get_player["active_legend_id"]
+      legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
+      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
 
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: api_key_param
+          headers: HEADERS.merge(auth_header),
         ).get("/legends/#{legend_id}/stream")
       rescue StandardError => e
         InternalError.build(e)
@@ -151,12 +156,13 @@ module Aromancer
     end
 
     def self.get_word_possibilities(selected_word_id)
-      legend_id = Aromancer::Storage.get_player["active_legend_id"]
+      legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
+      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
+
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: api_key_param
+          headers: HEADERS.merge(auth_header),
         ).get("/legends/#{legend_id}/words/#{selected_word_id}/possibilities")
       rescue StandardError => e
         InternalError.build(e)
@@ -164,12 +170,14 @@ module Aromancer
     end
 
     def self.create_turn(params)
-      legend_id = Aromancer::Storage.get_player["active_legend_id"]
+      legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
+      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
+
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: params.merge(api_key_param)
+          headers: HEADERS.merge(auth_header),
+          params: params
         ).post("/legends/#{legend_id}/arena")
       rescue StandardError => e
         InternalError.build(e)
@@ -177,12 +185,14 @@ module Aromancer
     end
 
     def self.update_turn(params)
-      legend_id = Aromancer::Storage.get_player["active_legend_id"]
+      legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
+      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
+
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
-          headers: HEADERS,
-          params: params.merge(api_key_param)
+          headers: HEADERS.merge(auth_header),
+          params: params
         ).put("/legends/#{legend_id}/arena")
       rescue StandardError => e
         InternalError.build(e)

@@ -14,8 +14,13 @@ require_relative :reiquire.to_s
 Reiquire::aromancer
 
 module Aromancer
-  THROTTLE_MS = 0.4
+  THROTTLE_MS = 0.2
   FONT = TTY::Font.new(:standard)
+
+  UNICODE = {
+    close: "\u2A2F",
+    check: "\u2713"
+  }
 
   # instance runs on main thread
   class Cli
@@ -25,8 +30,18 @@ module Aromancer
 
     # user entry point
     def self.run
+      # ensure preferences exist
+      Aromancer::Storage.get_preference(:debug, default: false)
+      Aromancer::Storage.get_preference(:force_ssl, default: true)
+      Aromancer::Storage.get_preference(:hide_sentences, default: true)
+
+      self.instance.last_render = 0
+
+      # load player on-start
+      Aromancer::Api.set_active_legend_id(nil) unless Aromancer::Storage.get_player.nil?
+
       Thread.main[:route] = :authentication
-      self.instance.last_render = Time.now
+      Thread.main[:menu_options] = {}
       Aromancer::Prompt.say(I18n.t("shared.welcome", version: Aromancer::VERSION))
       Aromancer::Prompt.say(I18n.t("shared.server_url", url: Aromancer::Storage::get_server_url))
       self.instance.start_ui_thread
@@ -35,7 +50,13 @@ module Aromancer
         begin
           self.instance.ui_thread.join
         rescue NoMethodError => e
+          if Aromancer::Storage.get_preference(:debug)
+            Aromancer::Prompt.say(I18n.t("shared.last_error"))
+            Aromancer::Prompt.say(e.inspect)
+            sleep(5)
+          end
           self.instance.start_ui_thread
+          self.instance.start_ws_thread
           sleep(1)
         rescue Interrupt => e
           exit
@@ -43,32 +64,29 @@ module Aromancer
       end
     end
 
-    def start_ui_thread
-      if @busy || Time.now - @last_render < 2
-        # Thread.new{
-        #   while Aromancer::Cli.instance.busy do
-        #     if Time.now - Aromancer::Cli.instance.last_render > 5
-        #       sleep(2)
-        #       Aromancer::Cli.instance.start_ui_thread
-        #     end
-        #   end
-        # }.join
-        return
-      end
+    def get_view(view_key)
+      Thread.main[:menu_options][view_key.to_sym]
+    end
+
+    def start_ui_thread(force = false)
+      return if (@busy || Time.now - @last_render < 2) && !force
+
       @busy = true
       self.ui_thread&.exit
       self.ui_thread&.kill
-      Thread.main[:input_controls] = nil
+      Thread.main[:menu_runners] = {}
       Aromancer::Prompt.instance.reload!
       self.ui_thread = Thread.new do
         loop do
-          ic = Thread.main[:input_controls]
-          unless ic.nil?
+          menu_options = Thread.main[:menu_options][Thread.main[:route]]
+          menu_runners = Thread.main[:menu_runners][Thread.main[:route]]
+          unless menu_options.nil? || menu_runners.nil?
             Aromancer::Routes.resume
             sleep(THROTTLE_MS)
-            v = Aromancer::Prompt.p.select("", ic[:choices], show_help: :always, cycle: true, per_page: 11)
-            runners = ic[:runners].select{|r| r[:value] == v}
-            runners = ic[:runners].select{|r| r[:value].nil?} if runners.empty?
+            Aromancer.print_hud
+            v = Aromancer::Prompt.p.select("", menu_options, show_help: :always, cycle: true, per_page: 11)
+            runners = menu_runners.select{|r| r[:value] == v}
+            runners = menu_runners.select{|r| r[:value].nil?} if runners.empty?
 
             if runners.any?
               r = runners.first
@@ -89,14 +107,14 @@ module Aromancer
     def start_ws_thread
       self.ws_thread.kill unless self.ws_thread.nil?
       self.ws_thread = Thread.new do
+        Aromancer::Websocket.instance.disconnect
         loop do
           player = Aromancer::Storage.get_player
           if player.nil?
             Aromancer::Websocket.instance.disconnect
           elsif !player["api_key"].nil?
             # attempt websocket connection
-            # puts :ws_thread
-            Aromancer::Websocket.instance.connect(player["api_key"])
+            Aromancer::Websocket.instance.connect
           end
 
           sleep(4)
@@ -114,6 +132,19 @@ module Aromancer
     "#{`echo $HOME`.strip}/.aromancer"
   end
 
+  def self.print_hud
+    websocket_status = "#{Aromancer::Storage.instance.get_key(:websocket_scheme)}: #{Aromancer::Websocket.instance.socket.nil? ? UNICODE[:close] : UNICODE[:check] }"
+    player_status = if Aromancer::Storage.get_player.nil?
+      I18n.t("routes.main_menu.not_signed_in")
+    else
+      I18n.t("shared.signed_in_as", as: Aromancer::Storage.get_player["alias"])
+    end
+
+    Aromancer::Prompt.say(
+      [nil, player_status, websocket_status, nil].join(" | ")
+    )
+  end
+
   def self.print_last_error(i18n_key = nil)
     last_error = Aromancer::Storage.get_last_error
     return if last_error.nil?
@@ -125,6 +156,7 @@ module Aromancer
     rescue JSON::ParserError => e
       message = last_error[:body]
     end
-    Aromancer::Prompt.say(I18n.t(i18n_key, status: last_error[:status], error: message))
+    Aromancer::Prompt.say(I18n.t(i18n_key || "shared.last_error", status: last_error[:status], error: message))
+    Aromancer::Storage.set_last_error(nil)
   end
 end
