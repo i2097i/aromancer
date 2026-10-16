@@ -12,6 +12,8 @@ module Aromancer
   class Storage
     include Singleton
 
+    DEFAULT_SERVER = "http://aromancer.com"
+
     attr_accessor :storage_open, :cache
 
     def initialize
@@ -61,8 +63,12 @@ module Aromancer
       instance.set_key(p_key, value)
     end
 
+    def self.toggle_preference(key)
+      set_preference(key, !get_preference(key))
+    end
+
     def self.toggle_force_ssl
-      set_preference(:force_ssl, !get_preference(:force_ssl))
+      toggle_preference(:force_ssl)
       v = get_preference(:force_ssl)
       self.instance.set_key(:server_url_scheme, "http#{v ? :s : ""}")
       self.instance.set_key(:websocket_scheme, "ws#{v ? :s : ""}")
@@ -126,15 +132,16 @@ module Aromancer
       uri = URI.parse(server_url)
       if uri.kind_of?(URI::HTTP) or uri.kind_of?(URI::HTTPS)
         URI_KEYS.each{|k|
+          uri.kind_of?(URI::HTTP) && get_preference(:force_ssl) ? toggle_force_ssl : nil
           Aromancer::Storage.instance.set_key("server_url_#{k}", uri.select(k).first)
         }
-      else
-        set_server_url(Aromancer::Server::DEVELOP_SERVER_URL)
+      elsif get_server_url.nil?
+        set_server_url(DEFAULT_SERVER)
       end
     end
 
     def self.get_server_url
-      set_server_url(Aromancer::Server::DEVELOP_SERVER_URL) if URI_KEYS.all?{|k| Aromancer::Storage.instance.get_key("server_url_#{k}").nil?}
+      set_server_url(DEFAULT_SERVER) if URI_KEYS.all?{|k| Aromancer::Storage.instance.get_key("server_url_#{k}").nil?}
       URI.parse(URI_KEYS.map{|k|
         c = Aromancer::Storage.instance.get_key("server_url_#{k}")
         case k
@@ -187,16 +194,15 @@ module Aromancer
         FileUtils.rm(Aromancer::Storage.storage_filepath)
         return
       end
-      @storage_open = false
 
       # only update the cache value if present in storage
       if storage_contents.keys.include?(key)
-        @cache[key][:value] = storage_contents[key]
-        @cache[key][:persisted] = true
+        @cache[key] = {value: storage_contents[key], persisted: true}
       else
         @cache[key][:persisted] = false
       end
 
+      @storage_open = false
       @cache[key][:value]
     end
 

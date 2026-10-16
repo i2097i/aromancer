@@ -28,19 +28,21 @@ module Aromancer
 
       signed_out = false
       signed_out = response.status == 401
-      error_body = nil
-      begin
-        error_body = JSON.parse(response.body)
-      rescue StandardError => e
+      # error_body = nil
+      # begin
+      #   error_body = JSON.parse(response.body)
+      # rescue StandardError => e
+      # end
+
+      # signed_out = signed_out &&
+      #   !error_body.nil? &&
+      #   error_body.keys.include?(:error_message.to_s) &&
+      #   error_body["error_message"] == "not signed in"
+
+      if signed_out
+        Aromancer::Storage.instance.clear_cache!
+        Aromancer::Storage.set_signed_out_flag(signed_out)
       end
-
-      signed_out = signed_out &&
-        !error_body.nil? &&
-        error_body.keys.include?(:error_message.to_s) &&
-        error_body["error_message"] == "not signed in"
-
-      Aromancer::Storage.instance.clear_cache! if signed_out
-      Aromancer::Storage.set_signed_out_flag(signed_out)
     end
 
     def self.sign_in
@@ -93,9 +95,15 @@ module Aromancer
     def self.sign_out
       result = Aromancer::Server.sign_out
       # clear storage
+      Aromancer::Storage.instance.clear_cache!
+      Aromancer::Storage.set_signed_out_flag(true)
       Aromancer::Storage.set_player(nil)
+      Aromancer::Storage.set_legends(nil)
+      Aromancer::Storage.set_arena(nil)
+      Aromancer::Storage.set_stream(nil)
       Aromancer::Storage.set_last_error(nil)
-      FileUtils.rm_rf(Aromancer::Storage.storage_filepath)
+
+      Aromancer::Websocket.instance.disconnect
 
       register_error(result) if result.status != 200
     end
@@ -110,6 +118,9 @@ module Aromancer
       result = Aromancer::Server.create_legend({legend: params})
       if result.status == 201
         response = JSON.parse(result.body)
+        if Aromancer::Storage.get_preference(:debug)
+          Aromancer::Prompt.say(JSON.pretty_generate(response))
+        end
         set_active_legend_id(response["id"])
       else
         register_error(result)
@@ -122,12 +133,13 @@ module Aromancer
         response = JSON.parse(result.body)
         Aromancer::Storage.set_legends(response)
       else
-        Aromancer::Storage.set_legends([])
+        Aromancer::Storage.set_legends(nil)
         register_error(result)
       end
     end
 
     def self.set_active_legend_id(active_legend_id)
+      Aromancer::Storage.set_arena(nil)
       result = Aromancer::Server.update_player({player: {
         active_legend_id: active_legend_id,
         status: active_legend_id.nil? ? :lobby : :playing
@@ -178,7 +190,6 @@ module Aromancer
       result = Aromancer::Server.create_turn({arena: arena_params})
       if result.status == 201
         response = JSON.parse(result.body)
-        load_arena
       else
         register_error(result)
       end
@@ -188,7 +199,6 @@ module Aromancer
       result = Aromancer::Server.update_turn({arena: arena_params})
       if result.status == 200
         response = JSON.parse(result.body)
-        load_arena
       else
         register_error(result)
       end
