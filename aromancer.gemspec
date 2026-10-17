@@ -13,7 +13,7 @@
 require_relative "lib/aromancer/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "aromancer"
+  spec.name = Aromancer.to_s.downcase
   spec.version = Aromancer::VERSION
   spec.authors = ["i2097i"]
   spec.email = ["i2097i@hotmail.com"]
@@ -24,7 +24,7 @@ Gem::Specification.new do |spec|
   spec.license       = "MIT"
   spec.files         = `git ls-files`.split("\n").reject{|p| p.match?(/^(spec|.release|.*.gem$)/)}
   spec.bindir        = "bin"
-  spec.executables   = ["aromancer"]
+  spec.executables   = [Aromancer.to_s.downcase]
   spec.require_paths = ["lib", "db"]
   spec.required_ruby_version = ">= 4.0.7"
 
