@@ -29,6 +29,7 @@ en:
       new_game: "new game"
       load_game: "load game"
       find_game: "find game"
+      rules: "rules"
       player_count: "enter player count (1-2): "
       sign_out: "sign out"
       not_signed_in: "signed out"
@@ -43,14 +44,15 @@ en:
       debug: "debug (%{stored})"
       debug_toggle: "debug preference toggled to %{value}"
     new_game:
-      player_count: "number of players"
-      story_count: "number of stories"
+      player_count: "players"
+      story_count: "stories"
       starting: "starting new game..."
       status: "status"
       cancelled: "cancelled. game not created."
     legend:
       title: "legend"
       subtitle: "%{subtitle}"
+      alchemy_for: "alchemy_for_%{name}:"
       arena_failed: "arena failed to load (%{status}). %{error}"
       scroll: "scroll"
       spoken_words: "scroll words"
@@ -66,6 +68,8 @@ en:
       place_on_scroll: "place %{word} on the scroll."
       options_for_word: "available options for the %{word} word."
       last_error: "last error"
+      returning_to_main: "returning to main menu..."
+      your_alchemy: "alchemy"
     legends:
       help: ""
     legend_menu:
@@ -74,5 +78,5 @@ en:
       help: ""
     stream:
       title: "stream"
-
-
+      end: "eos"
+      hide_title: "hide stream"

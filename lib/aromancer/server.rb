@@ -141,7 +141,7 @@ module Aromancer
       end
     end
 
-    def self.get_stream
+    def self.get_stream(count = nil)
       legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
       return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
 
@@ -149,7 +149,7 @@ module Aromancer
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
           headers: HEADERS.merge(auth_header),
-        ).get("/legends/#{legend_id}/stream")
+        ).get("/legends/#{legend_id}/stream?count=#{count || nil}")
       rescue StandardError => e
         InternalError.build(e)
       end
@@ -169,7 +169,7 @@ module Aromancer
       end
     end
 
-    def self.create_turn(params)
+    def self.submit_turn(request_uuid, params = {})
       legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
       return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
 
@@ -178,22 +178,18 @@ module Aromancer
           url: Aromancer::Storage.get_server_url,
           headers: HEADERS.merge(auth_header),
           params: params
-        ).post("/legends/#{legend_id}/arena")
+        ).put("/legends/#{legend_id}/arena/#{request_uuid}")
       rescue StandardError => e
         InternalError.build(e)
       end
     end
 
-    def self.update_turn(params)
-      legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
-      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
-
+    def self.load_rules
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
           headers: HEADERS.merge(auth_header),
-          params: params
-        ).put("/legends/#{legend_id}/arena")
+        ).get("/")
       rescue StandardError => e
         InternalError.build(e)
       end

@@ -12,4 +12,8 @@
 
 require :aromancer.to_s
 
-Aromancer::Cli.run
+if ARGV[0] == :serve.to_s
+  Aromancer::Serve.run
+else
+  Aromancer::Cli.run
+end

@@ -28,8 +28,24 @@ module Aromancer
       Aromancer::Prompt.instance.prompt
     end
 
-    def self.say(message)
-      (message.kind_of?(String) ? message.split("\n").each{|l| p.say(l.to_s.center(TTY::Screen.width))} : message)
+    def self.print_divider(text = nil)
+      puts "\n" if TTY::Screen.width > 99.9
+      self.p.say((text || "").center(TTY::Screen.width / 2.2, "-").center(TTY::Screen.width))
+      puts "\n" if TTY::Screen.width > 99.9
+    end
+
+    def self.say(message, ljust: false, rjust: false)
+      center = !ljust && !rjust
+      if message.kind_of?(String)
+        # puts "\n" if TTY::Screen.width > 99.9
+        message.split("\n").each{|l|
+          self.p.say(l.to_s.ljust(TTY::Screen.width)) if ljust
+          self.p.say(l.to_s.center(TTY::Screen.width)) if center
+          self.p.say(l.to_s.rjust(TTY::Screen.width)) if rjust
+        }
+      else
+        self.p.say(message)
+      end
     end
   end
 

@@ -12,7 +12,7 @@ module Aromancer
   class Storage
     include Singleton
 
-    DEFAULT_SERVER = "http://aromancer.com"
+    DEFAULT_SERVER = "http://127.0.0.1"
 
     attr_accessor :storage_open, :cache
 
@@ -48,7 +48,7 @@ module Aromancer
       return Time.now.to_i
     end
 
-    def self.get_preference(preference, default: :default)
+    def self.get_preference(preference, default: nil)
       p_key = "preference_#{preference}"
       p = instance.get_key(p_key)
       if p.nil?
@@ -64,7 +64,8 @@ module Aromancer
     end
 
     def self.toggle_preference(key)
-      set_preference(key, !get_preference(key))
+      v = get_preference(key)
+      set_preference(key, !v)
     end
 
     def self.toggle_force_ssl
@@ -130,7 +131,7 @@ module Aromancer
 
     def self.set_server_url(server_url)
       uri = URI.parse(server_url)
-      if uri.kind_of?(URI::HTTP) or uri.kind_of?(URI::HTTPS)
+      if uri.kind_of?(URI::HTTP) || uri.kind_of?(URI::HTTPS)
         URI_KEYS.each{|k|
           uri.kind_of?(URI::HTTP) && get_preference(:force_ssl) ? toggle_force_ssl : nil
           Aromancer::Storage.instance.set_key("server_url_#{k}", uri.select(k).first)
