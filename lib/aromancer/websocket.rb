@@ -22,9 +22,18 @@ module Aromancer
 
     attr_accessor :socket
 
+    def self.channel_identifier
+      {identifier: {channel: :PlayerChannel.to_s, id: Aromancer::Storage.get_player["id"]}.to_json}
+    end
+
     def connect
-      return unless self.socket.nil?
-      return if Aromancer::Storage.get_player["api_key"].nil?
+      if !self.socket.nil? && self.socket.closed?
+        disconnect
+      end
+
+      return if !self.socket.nil? ||
+        Aromancer::Storage.get_player["api_key"].nil? ||
+        Aromancer::Storage.get_player["active_legend_id"].nil?
 
       begin
         self.socket = WebSocket::Client::Simple.connect(Aromancer::Storage.get_websocket_url, {headers: Aromancer::Server.auth_header})
@@ -46,7 +55,7 @@ module Aromancer
             lid = Aromancer::Storage.get_player&.symbolize_keys[:active_legend_id]
             if !lid.nil? && lid == legend_id.to_i
               Aromancer::Api.load_arena
-              sleep(0.5)
+              sleep(1)
               Aromancer::Cli.instance.start_ui_thread
             end
           when :legends
@@ -57,10 +66,7 @@ module Aromancer
       end
 
       self.socket.on :open do
-        r = {
-          command: "subscribe",
-          identifier: {channel: "PlayerChannel"}.to_json
-        }.to_json
+        r = {"command": :subscribe.to_s}.merge(Aromancer::Websocket.channel_identifier).to_json
         Aromancer::Websocket.instance.socket.send(r)
       end
 
@@ -69,7 +75,10 @@ module Aromancer
       end
 
       self.socket.on :error do |e|
-        puts e.inspect
+        if Aromancer::Storage.get_preference(:debug)
+          Aromancer::Prompt.say("#{self.class.name} socket.on :error")
+          Aromancer::Prompt.say(e.inspect)
+        end
         Aromancer::Websocket.instance.disconnect
       end
     end
@@ -78,5 +87,15 @@ module Aromancer
       self.socket&.close
       self.socket = nil
     end
+
+    # todo: websockets only in-game
+    # https://docs.anycable.io/misc/action_cable_protocol#perform-actions
+    # def self.set_active_legend_id(id)
+    #   return if self.instance.socket.nil?
+    #   r = {"command": :message.to_s}.merge(Aromancer::Websocket.channel_identifier).merge({
+    #     data: {action: :player.to_s, active_legend_id: id}.to_json
+    #   }).to_json
+    #   self.instance.socket.send(r)
+    # end
   end
 end

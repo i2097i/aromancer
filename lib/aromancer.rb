@@ -31,6 +31,7 @@ module Aromancer
         system("git clone git@github.com:arowmancy/aromancer_serve.git")
       end
       FileUtils.chdir :aromancer_serve.to_s do
+        system("git checkout v#{Aromancer::VERSION} && git pull origin v#{Aromancer::VERSION}")
         system("bin/setup")
       end
     end
@@ -100,7 +101,11 @@ module Aromancer
         loop do
           menu_options = Thread.main[:menu_options][Thread.main[:route]]
           menu_runners = Thread.main[:menu_runners][Thread.main[:route]]
-          unless menu_options.nil? || menu_runners.nil?
+          unless menu_options.nil? ||
+            menu_runners.nil? ||
+            menu_options.empty? ||
+            menu_runners.empty?
+
             Aromancer::Routes.resume
             Aromancer.print_hud
             sleep(THROTTLE_MS)
@@ -126,29 +131,38 @@ module Aromancer
     def start_ws_thread
       return if @ws_busy
       @ws_busy = true
-      self.ws_thread.kill unless self.ws_thread.nil?
+      self.ws_thread&.exit
+      self.ws_thread&.kill
       self.ws_thread = Thread.new do
         Aromancer::Websocket.instance.disconnect
         loop do
           player = Aromancer::Storage.get_player
-          if player.nil?
+          if player.nil? ||
+            player["active_legend_id"].nil?
             @ws_busy = true
             Aromancer::Websocket.instance.disconnect
-          elsif !player["api_key"].nil?
+          elsif !player["api_key"].nil? &&
+            !player["active_legend_id"].nil? &&
+            (Aromancer::Websocket.instance.socket.nil? || Aromancer::Websocket.instance.socket.closed?)
             # attempt websocket connection
             @ws_busy = true
             Aromancer::Websocket.instance.connect
+            if Aromancer::Storage.get_arena.nil?
+              Aromancer::Api.load_arena
+              sleep(1)
+              Aromancer::Cli.instance.start_ui_thread(true)
+            end
           end
           @ws_busy = false
-          sleep(4)
+          sleep(1)
         end
       end
     end
 
   end
 
-  def self.get_font(text = :aromancer.to_s, letter_spacing = 1)
-    Aromancer::FONT.write(text, letter_spacing: letter_spacing).split("\n")
+  def self.print_large_text(text = Aromancer.to_s.downcase, letter_spacing = 1)
+    Aromancer::Prompt.say(Aromancer::FONT.write(text, letter_spacing: letter_spacing))
   end
 
   def self.home_directory

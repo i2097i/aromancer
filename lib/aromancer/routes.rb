@@ -46,22 +46,6 @@ module Aromancer
       ).first
     end
 
-    def self.arena_data
-      arena = Aromancer::Storage.get_arena
-      if arena.nil?
-        Aromancer::Api.load_arena
-        sleep(1)
-      end
-
-      if arena.nil?
-        Aromancer.print_last_error("routes.legend.arena_failed")
-        Aromancer::Prompt.p.ask(I18n.t("shared.key_press"))
-        Aromancer::Api.set_active_legend_id(nil)
-      else
-        arena
-      end
-    end
-
     def self.authentication
       if Aromancer::Storage.get_player
         Aromancer::Storage.set_signed_out_flag(false)
@@ -87,6 +71,9 @@ module Aromancer
         }},
         {value: :configure, proc: Proc.new{
           configure
+        }},
+        {value: :exit, proc: Proc.new{
+          exit
         }}
       ]
       Thread.main[:route] = __method__.to_sym
@@ -94,7 +81,7 @@ module Aromancer
 
     def self.configure
       cls
-
+      Aromancer.print_large_text(Thread.main[:route].to_s)
       Aromancer::Prompt.say(I18n.t("routes.configure.title", name: Aromancer.to_s.downcase))
       [
         Aromancer::Storage.get_server_url,
@@ -210,6 +197,7 @@ module Aromancer
 
       return authentication if player.nil?
 
+      Aromancer.print_large_text
       Thread.main[:menu_options][__method__.to_sym] ||= [
         {name: I18n.t("routes.main_menu.new_game"), value: :new},
         {name: I18n.t("routes.main_menu.load_game"), value: :load},
@@ -252,7 +240,7 @@ module Aromancer
         }},
         {value: :exit, proc: Proc.new{
           exit
-        }},
+        }}
       ]
       Thread.main[:route] = __method__.to_sym
     end
@@ -402,7 +390,6 @@ module Aromancer
           Thread.main[:route] = __method__.to_sym
           return
         elsif active_legend["player"] && (active_legend["player"]["words"] || []).count == 0
-          Aromancer::Api.load_arena
           return
         end
       else
@@ -417,6 +404,14 @@ module Aromancer
       hide_stream_pref_value = "#{hide_stream_pref ? "" : "hide_"}title".to_sym
 
       Thread.main[:route] = __method__.to_sym
+
+      arena = Aromancer::Storage.get_arena
+      if arena.nil? || arena["turn_player"].nil? || arena["turn_player"]["id"] != Aromancer::Storage.get_player["id"]
+        Thread.main[:menu_options][__method__.to_sym] = []
+        Thread.main[:menu_runners][__method__.to_sym] = []
+        return
+      end
+
       Thread.main[:menu_options][__method__.to_sym] = [
         {name: I18n.t("routes.legend.unspoken_words"), value: :words},
         {name: I18n.t("routes.legend.spoken_words"), value: :spoken_words},
@@ -447,12 +442,12 @@ module Aromancer
 
     def self.legend
       Aromancer::Prompt.say(I18n.t("shared.navigate", route: :legend)) if Aromancer::Storage.get_preference(:debug)
-      Aromancer::Api.load_arena
-      arena = arena_data
+      arena = Aromancer::Storage.get_arena
       al = active_legend
       al_status = ((al || {})["status"] || "").to_sym
       if !al.nil? &&
-        [:created, :complete].include?(al_status)
+        [:created, :complete].include?(al_status) &&
+        !arena.nil?
 
         stream(display_only: true) # display entire stream
         Aromancer::Prompt.print_divider(al["value_display"])
@@ -578,7 +573,12 @@ module Aromancer
       cls
       legend
 
-      arena = arena_data
+      arena = Aromancer::Storage.get_arena
+      if arena["player"].nil? || arena["player"]["words"].nil?
+        Aromancer::Api.load_arena
+        sleep(1)
+        main_menu
+      end
       Thread.main[:menu_options][__method__.to_sym] = [
         {name: I18n.t("shared.back"), value: :back}
       ] + arena["player"]["words"].map{|w| {name: w["value_display"], value: w["id"]}}
@@ -597,7 +597,7 @@ module Aromancer
       cls
       legend
 
-      arena = arena_data
+      arena = Aromancer::Storage.get_arena
       Thread.main[:menu_options][__method__.to_sym] = [
         {name: I18n.t("shared.back"), value: :back}
       ] + arena["scroll_words"].map{|w| {name: w["value_display"], value: w["id"]}}
@@ -616,7 +616,7 @@ module Aromancer
       cls
       legend
 
-      arena = arena_data
+      arena = Aromancer::Storage.get_arena
       Thread.main[:menu_options][__method__.to_sym] = [
         {name: I18n.t("shared.back"), value: :back}
       ] + arena["sentences"].map{|s| {name: s["value_display"], value: s["id"]}}
@@ -646,11 +646,12 @@ module Aromancer
       selected_word = possibilities["word"]
       for_type = possibilities["for_type"].to_sym
 
-      arena = arena_data
+      arena = Aromancer::Storage.get_arena
       player_words = arena["player"]["words"]
 
       choices = [{name: I18n.t("shared.back"), value: :back}]
-      if for_type == :player_word
+      if for_type == :player_word &&
+        arena["turn_player"]["id"] == Aromancer::Storage.get_player["id"]
 
         # show place on scroll option if selected word is from player's words
         choices << {
@@ -659,8 +660,11 @@ module Aromancer
         }
       end
 
-      choices += options.map{|o| {name: "#{o["humanized_title"]} -> weight: #{o["total_weight"]}", value: o}}
+      unless arena["turn_player"]["id"] != Aromancer::Storage.get_player["id"]
+        choices += options.map{|o| {name: "#{o["humanized_title"]} -> weight: #{o["total_weight"]}", value: o}}
+      end
 
+      _muh_method = __method__.to_sym
       Thread.main[:menu_options][__method__.to_sym] = choices
       Thread.main[:menu_runners][__method__.to_sym] = [
         {value: :back, proc: Proc.new{
@@ -674,12 +678,16 @@ module Aromancer
           end
         }},
         {value: :player_word, proc: Proc.new{
+          Aromancer::Prompt.say("waiting...")
+          Thread.main[:menu_options][_muh_method] = []
+          Thread.main[:menu_runners][_muh_method] = []
           Aromancer::Api.submit_turn(request_uuid)
-          legend_menu
         }},
         {value: nil, proc: Proc.new{|o|
+          Aromancer::Prompt.say("waiting...")
+          Thread.main[:menu_options][_muh_method] = []
+          Thread.main[:menu_runners][_muh_method] = []
           Aromancer::Api.submit_turn(request_uuid, {option_uuid: o[:uuid.to_s]})
-          legend_menu
         }}
       ]
       Thread.main[:route_params] = [selected_word_id]

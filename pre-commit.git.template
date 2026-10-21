@@ -1,0 +1,5 @@
+#!/bin/sh
+
+echo "pre-commit hook"
+echo "rake build:checksum && git add checksums/"
+rake build:checksum && git add checksums/
