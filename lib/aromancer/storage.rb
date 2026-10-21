@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 =begin
 
   storage.rb
@@ -12,18 +14,116 @@ module Aromancer
   class Storage
     include Singleton
 
+    VALID_KEYS = [
+      :arena,
+      :last_error,
+      :legends,
+      :player,
+      :preference_debug,
+      :preference_force_ssl,
+      :preference_hide_sentences,
+      :preference_hide_stream,
+      :server_url_host,
+      :server_url_port,
+      :server_url_scheme,
+      :signed_out_flag,
+      :stream,
+      :websocket_path,
+      :websocket_scheme
+   ]
+
+   PERSISTED_KEYS = [
+      :last_error,
+      :player,
+      :preference_debug,
+      :preference_force_ssl,
+      :preference_hide_sentences,
+      :preference_hide_stream,
+      :server_url_host,
+      :server_url_port,
+      :server_url_scheme,
+      :websocket_path,
+      :websocket_scheme
+    ]
+
+    URI_KEYS = [
+      :scheme,
+      :host,
+      :port
+    ]
+
     DEFAULT_SERVER = "http://127.0.0.1"
 
-    attr_accessor :storage_open, :cache
+    DEFAULT_PREFERENCES = {
+      preference_debug: false,
+      preference_force_ssl: false,
+      preference_hide_sentences: true,
+      preference_hide_stream: true,
+    }
+
+    attr_accessor :storage_open, :cache, :clear_flag, :parser_error
 
     def initialize
+      reload!
+      ensure_default_preferences_exist
+    end
+
+    def ensure_default_preferences_exist
+      DEFAULT_PREFERENCES.keys.each{|d_key|
+        current_value = get_key(d_key)
+        if current_value.nil? || ![TrueClass, FalseClass].include?(current_value.class)
+          set_key(d_key.to_s, DEFAULT_PREFERENCES[d_key])
+        end
+      }
+    end
+
+    def reload!
+      @storage_open = false
+      @clear_flag = false
+      @parser_error = nil
       clear_cache!
       FileUtils.mkdir_p(Aromancer.home_directory)
     end
 
     def clear_cache!
+      if @storage_open
+        @clear_flag = true
+        return
+      end
+      @clear_flag = false
       @storage_open = false
-      @cache = {}
+
+      @cache = {} # clear'd
+    end
+
+    def self.snapshot_config
+      current_config = {}
+
+      PERSISTED_KEYS.each{|p_key|
+        current_config[p_key] = Aromancer::Storage.instance.get_key(p_key)
+      }
+
+      current_config
+    end
+
+    def self.valid_config?(config)
+      return false unless config.kind_of?(Hash)
+
+      config.keys.all?{|k| PERSISTED_KEYS.include?(k.to_sym)}
+    end
+
+    def self.restore_config(config)
+      return nil unless valid_config?(config)
+      PERSISTED_KEYS.each{|p_key|
+        Aromancer::Storage.instance.set_key(p_key, config[p_key])
+      }
+    end
+
+    def self.recreate!
+      current_config = snapshot_config
+      FileUtils.rm_rf(storage_filepath)
+      Aromancer::Storage.instance.reload!
+      restore_config(current_config)
     end
 
     def self.storage_filepath
@@ -50,33 +150,33 @@ module Aromancer
 
     def self.get_preference(preference, default: nil)
       p_key = "preference_#{preference}"
-      p = instance.get_key(p_key)
-      if p.nil?
-        instance.set_key(p_key, default)
-        return instance.get_key(p_key)
+      pref = Aromancer::Storage.instance.get_key(p_key)
+      if pref.nil? && !default.nil?
+        Aromancer::Storage.instance.set_key(p_key, default)
+        pref = Aromancer::Storage.instance.get_key(p_key)
       end
-      p
+      pref
     end
 
     def self.set_preference(preference, value)
       p_key = "preference_#{preference}"
-      instance.set_key(p_key, value)
+      Aromancer::Storage.instance.set_key(p_key, value)
     end
 
     def self.toggle_preference(key)
-      v = get_preference(key)
+      v = get_preference(key, default: DEFAULT_PREFERENCES["preference_#{key}"])
       set_preference(key, !v)
     end
 
     def self.toggle_force_ssl
       toggle_preference(:force_ssl)
       v = get_preference(:force_ssl)
-      self.instance.set_key(:server_url_scheme, "http#{v ? :s : ""}")
-      self.instance.set_key(:websocket_scheme, "ws#{v ? :s : ""}")
+      Aromancer::Storage.set_key(:server_url_scheme, "http#{v ? :s : ""}")
+      Aromancer::Storage.set_key(:websocket_scheme, "ws#{v ? :s : ""}")
     end
 
     def self.set_signed_out_flag(flag)
-      Aromancer::Storage.instance.set_key(:signed_out_flag, flag)
+      instance.set_key(:signed_out_flag, flag)
     end
 
     def self.get_signed_out_flag
@@ -84,7 +184,7 @@ module Aromancer
     end
 
     def self.set_player(player_hash)
-      Aromancer::Storage.instance.set_key(:player, player_hash)
+      instance.set_key(:player, player_hash)
     end
 
     def self.get_player
@@ -92,7 +192,7 @@ module Aromancer
     end
 
     def self.set_legends(legends_array)
-      Aromancer::Storage.instance.set_key(:legends, legends_array)
+      instance.set_key(:legends, legends_array)
     end
 
     def self.get_legends
@@ -100,7 +200,7 @@ module Aromancer
     end
 
     def self.set_arena(arena_hash)
-      Aromancer::Storage.instance.set_key(:arena, arena_hash)
+      instance.set_key(:arena, arena_hash)
     end
 
     def self.get_arena
@@ -108,7 +208,7 @@ module Aromancer
     end
 
     def self.set_stream(stream_array)
-      Aromancer::Storage.instance.set_key(:stream, stream_array)
+      instance.set_key(:stream, stream_array)
     end
 
     def self.get_stream
@@ -116,25 +216,18 @@ module Aromancer
     end
 
     def self.set_last_error(error_hash)
-      Aromancer::Storage.instance.set_key(:last_error, error_hash)
+      instance.set_key(:last_error, error_hash)
     end
 
     def self.get_last_error
       Aromancer::Storage.instance.get_key(:last_error)
     end
 
-    URI_KEYS = [
-      :scheme,
-      :host,
-      :port
-    ]
-
     def self.set_server_url(server_url)
       uri = URI.parse(server_url)
       if uri.kind_of?(URI::HTTP) || uri.kind_of?(URI::HTTPS)
         URI_KEYS.each{|k|
-          uri.kind_of?(URI::HTTP) && get_preference(:force_ssl) ? toggle_force_ssl : nil
-          Aromancer::Storage.instance.set_key("server_url_#{k}", uri.select(k).first)
+          instance.set_key("server_url_#{k}", uri.select(k).first)
         }
       elsif get_server_url.nil?
         set_server_url(DEFAULT_SERVER)
@@ -159,12 +252,12 @@ module Aromancer
     def self.get_websocket_url
       # default scheme is ws
       w_scheme = Aromancer::Storage.instance.get_key(:websocket_scheme)
-      Aromancer::Storage.instance.set_key(:websocket_scheme, :ws) if w_scheme.nil?
+      instance.set_key(:websocket_scheme, :ws) if w_scheme.nil?
       w_scheme = Aromancer::Storage.instance.get_key(:websocket_scheme)
 
       # default path is broadcast
       w_path = Aromancer::Storage.instance.get_key(:websocket_path)
-      Aromancer::Storage.instance.set_key(:websocket_path, :broadcast) if w_path.nil?
+      instance.set_key(:websocket_path, :broadcast) if w_path.nil?
       w_path = Aromancer::Storage.instance.get_key(:websocket_path)
 
       # asserts host and port not nil
@@ -180,7 +273,9 @@ module Aromancer
 
       # ensure default for key exists
       @cache[key] = {value: nil, persisted: false} unless @cache.keys.include?(key)
-
+      if false && (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
+        Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
+      end
       # return cache value if storage open or the cache value is persisted
       return @cache[key][:value] if @storage_open || @cache[key][:persisted]
 
@@ -188,12 +283,17 @@ module Aromancer
       @storage_open = true
       storage_contents = {}
       begin
+        @parser_error = nil
         # read storage
-        storage_contents = JSON.parse(File.read(Aromancer::Storage.storage_filepath))
+        storage_contents = JSON.parse(File.read(Aromancer::Storage.storage_filepath, encoding: "UTF-8"))
       rescue StandardError => e
         @storage_open = false
-        FileUtils.rm(Aromancer::Storage.storage_filepath)
-        return
+        if @parser_error.nil?
+          @parser_error = e
+          return get_key(key)
+        else
+          raise @parser_error
+        end
       end
 
       # only update the cache value if present in storage
@@ -203,20 +303,26 @@ module Aromancer
         @cache[key][:persisted] = false
       end
 
+      value = @cache[key][:value]
       @storage_open = false
-      @cache[key][:value]
+      clear_cache! if @clear_flag
+      return value
     end
 
     def set_key(key, value)
       key = key.to_s
 
       # ensure default for key exists
-      @cache[key] = {value: nil, persisted: false} unless @cache.keys.include?(key)
+      @cache[key] = {value: value, persisted: false} unless @cache.keys.include?(key)
 
       # assign new cache value and set persisted to false
       @cache[key][:value] = value
       @cache[key][:persisted] = false
 
+      if @storage_open && (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
+        puts Thread.current.backtrace
+        Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
+      end
       # return if storage open
       # non-persisted cache values update next cycle
       return if @storage_open
@@ -225,12 +331,17 @@ module Aromancer
       @storage_open = true
       storage_contents = {}
       begin
+        @parser_error = nil
         # read storage
-        storage_contents = JSON.parse(File.read(Aromancer::Storage.storage_filepath))
+        storage_contents = JSON.parse(File.read(Aromancer::Storage.storage_filepath, encoding: "UTF-8"))
       rescue StandardError => e
         @storage_open = false
-        FileUtils.rm(Aromancer::Storage.storage_filepath)
-        return
+        if @parser_error.nil?
+          @parser_error = e
+          return get_key(key)
+        else
+          raise @parser_error
+        end
       end
 
       # update storage and cache
@@ -246,8 +357,13 @@ module Aromancer
         f.write(storage_contents.to_json)
       end
 
+      if (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
+        Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
+      end
+
       # close storage
       @storage_open = false
+      clear_cache! if @clear_flag
     end
   end
 end

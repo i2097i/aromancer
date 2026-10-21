@@ -24,4 +24,4 @@ aromancer
 [license](http://opensource.org/licenses/MIT)
 [issues](https://github.com/i2097i/aromancer/issues)
 
-#### aromancer by i2097i is copyright (2026)
+#### aromancer by scot reichman is copyright (2026)

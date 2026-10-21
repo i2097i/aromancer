@@ -22,7 +22,6 @@ module Aromancer
       def initialize(status: -1, body: {})
         @status = status
         @body = body
-        Aromancer::Storage.instance.clear_cache!
       end
 
       def self.build(e)

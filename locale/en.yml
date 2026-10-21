@@ -13,6 +13,7 @@ en:
     update_confirm: "confirm update [%{new_value}] (enter y): "
     signed_in_as: "authenticated as %{as}"
     last_error: "error (%{status}). %{error}"
+    waiting: "waiting..."
     back: "back"
     exit: "exit"
   routes:
@@ -68,7 +69,7 @@ en:
       place_on_scroll: "place %{word} on the scroll."
       options_for_word: "available options for the %{word} word."
       last_error: "last error"
-      returning_to_main: "returning to main menu..."
+      returning_to_: "returning to %{route}..."
       your_alchemy: "alchemy"
     legends:
       help: ""

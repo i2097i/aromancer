@@ -24,23 +24,12 @@ module Aromancer
         body: response.body.to_s
       }
       Aromancer::Storage.set_last_error(le)
-      Aromancer.print_last_error
-      signed_out = false
-      signed_out = response.status == 401
-      # error_body = nil
-      # begin
-      #   error_body = JSON.parse(response.body)
-      # rescue StandardError => e
-      # end
 
-      # signed_out = signed_out &&
-      #   !error_body.nil? &&
-      #   error_body.keys.include?(:error_message.to_s) &&
-      #   error_body["error_message"] == "not signed in"
-
-      if signed_out
-        Aromancer::Storage.instance.clear_cache!
-        Aromancer::Storage.set_signed_out_flag(signed_out)
+      if response.status == 401
+        Aromancer::Storage.set_signed_out_flag(true)
+        player = Aromancer::Storage.get_player
+        player["api_key"] = nil
+        Aromancer::Storage.set_player(player)
       end
     end
 
@@ -93,17 +82,9 @@ module Aromancer
 
     def self.sign_out
       result = Aromancer::Server.sign_out
-      # clear storage
-      Aromancer::Storage.instance.clear_cache!
-      Aromancer::Storage.set_signed_out_flag(false)
       Aromancer::Storage.set_player(nil)
-      Aromancer::Storage.set_legends(nil)
-      Aromancer::Storage.set_arena(nil)
-      Aromancer::Storage.set_stream(nil)
-      Aromancer::Storage.set_last_error(nil)
-
       Aromancer::Websocket.instance.disconnect
-
+      Aromancer::Storage.recreate!
       register_error(result) if result.status != 200
     end
 

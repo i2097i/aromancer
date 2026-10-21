@@ -1,4 +1,4 @@
-desc "bundle graph && rake install && rspec --backtrace"
+desc "rake install"
 task :make do
-  exec "bundle graph && rake install && rspec --backtrace"
+  exec "rake install"
 end
