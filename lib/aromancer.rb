@@ -28,8 +28,24 @@ module Aromancer
     Aromancer::Prompt.say(Aromancer::FONT.write(text, letter_spacing: letter_spacing))
   end
 
+  def self.configure_home
+    FileUtils.mkdir_p(Aromancer.home_directory) unless Dir.exist? Aromancer.home_directory
+    FileUtils.mkdir_p(Aromancer.arena_directory) unless Dir.exist? Aromancer.arena_directory
+    unless Dir.exist? File.join(Aromancer.home_directory, :".git".to_s)
+      FileUtils.chdir Aromancer.home_directory do
+        system(:"git init".to_s)
+        system(:"git add .".to_s)
+        system(:"git commit -m \"#{self.name} initial commit\"".to_s)
+      end
+    end
+  end
+
   def self.home_directory
     "#{`echo $HOME`.strip}/.aromancer"
+  end
+
+  def self.arena_directory
+    File.join(home_directory, :arena.to_s)
   end
 
   def self.date_display(raw)
@@ -51,9 +67,33 @@ module Aromancer
     else
       I18n.t("shared.signed_in_as", as: Aromancer::Storage.get_player["alias"])
     end
+    server_status = I18n.t("shared.server_url", url: Aromancer::Storage::get_server_url)
+    force_ssl_value = Aromancer::Storage.get_preference(:force_ssl)
+    force_ssl_status_symbol = (
+      force_ssl_value
+    ) ? UNICODE[:check] : UNICODE[:close]
+    force_ssl_status = "ssl: #{force_ssl_status_symbol}"
+
+    debug_value = Aromancer::Storage.get_preference(:debug)
+    hud = [
+      nil,
+      player_status,
+      server_status,
+      force_ssl_status,
+      websocket_status,
+      :v.to_s + Aromancer::VERSION,
+      nil
+    ]
+
+    if debug_value
+      debug_status_symbol = (
+        debug_value
+      ) ? UNICODE[:check] : UNICODE[:close]
+      hud.insert(1, "d: #{debug_status_symbol}")
+    end
 
     Aromancer::Prompt.say(
-      [nil, :v.to_s + Aromancer::VERSION, player_status, websocket_status, nil,].join(" | ")
+      hud.join(" | ")
     )
   end
 

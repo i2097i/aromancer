@@ -122,7 +122,7 @@ module Aromancer
             Aromancer::Storage.instance.set_key(storage_key, previous)
           end
 
-          Aromancer::Storage.instance.clear_cache!
+          Aromancer::Cli.instance.should_clear_cache = true
         end
         Aromancer::Prompt.say(I18n.t("shared.server_url", url: Aromancer::Storage.get_server_url))
       }
@@ -151,7 +151,7 @@ module Aromancer
           Aromancer::Prompt.say(
             I18n.t("routes.configure.force_ssl_toggle", value: Aromancer::Storage.get_preference(:force_ssl))
           )
-          sleep(2)
+          sleep(1)
           configure
         }},
         {value: :debug, proc: Proc.new{
@@ -160,7 +160,7 @@ module Aromancer
           Aromancer::Prompt.say(
             I18n.t("routes.configure.debug_toggle", value: Aromancer::Storage.get_preference(:debug))
           )
-          sleep(2)
+          sleep(1)
           configure
         }},
       ]
@@ -223,8 +223,8 @@ module Aromancer
           Thread.main[:route_params] = [params]
           new_game(params)
         }},
-        {value: :load, proc: Proc.new{ Aromancer::Routes::legends }},
-        {value: :find, proc: Proc.new{ Aromancer::Routes::find_game }},
+        {value: :load, proc: Proc.new{ Thread.main[:route] = :legends }},
+        {value: :find, proc: Proc.new{ Thread.main[:route] = :find_game }},
         {value: :configure, proc: Proc.new{
           configure
         }},
@@ -268,11 +268,11 @@ module Aromancer
       Thread.main[:menu_runners][__method__.to_sym] = [
         {value: :continue, proc: Proc.new{
           Aromancer::Api.create_legend(params)
-          legend_menu
+          Thread.main[:route] = :legend_menu
         }},
         {value: :cancel, proc: Proc.new{
           Aromancer::Prompt.say(I18n.t("routes.new_game.cancelled"))
-          main_menu
+          Thread.main[:route] = :main_menu
         }}
       ]
       Thread.main[:route] = __method__.to_sym
@@ -287,11 +287,12 @@ module Aromancer
       # if legend_array.nil?, load player's legends
       if legend_array.nil?
         Aromancer::Api.get_legends
-        legend_array = Aromancer::Storage.get_legends
+        sleep(Aromancer::Cli::RENDER_DELAY)
+        legend_array = Aromancer::Storage.get_legends || []
         unless legend_array.any?
           Aromancer::Prompt.say(I18n.t("shared.empty"))
           sleep(1)
-          return main_menu
+          Thread.main[:route] = :main_menu
         end
       end
 
@@ -309,17 +310,17 @@ module Aromancer
       Thread.main[:menu_runners][__method__.to_sym] = [
         {value: :back, proc: Proc.new{
           Aromancer::Api.set_active_legend_id(nil)
-          main_menu
+          Thread.main[:route] = :main_menu
         }},
       ] + legend_array.map{|l|
         {
           value: l["id"],
           proc: Proc.new{
             Aromancer::Api.set_active_legend_id(l["id"])
-            sleep(1)
+            sleep(Aromancer::Cli::RENDER_DELAY)
             Aromancer::Api.get_legends
 
-            legend_menu
+            Thread.main[:route] = :legend_menu
           }
         }
       }
@@ -330,9 +331,9 @@ module Aromancer
       return if Thread.main[:route] == __method__.to_sym
       Aromancer::Prompt.print_divider(I18n.t("routes.stream.title"))
       Aromancer::Api.load_stream(recent_count)
-      stream = Aromancer::Storage.get_stream
-      stream["stream"].last(
-        recent_count.nil? ? stream["stream"].count : recent_count
+      entries = Aromancer::Storage.get_stream
+      entries["stream"].last(
+        recent_count.nil? ? entries["stream"].count : recent_count
       ).each{|e|
         Aromancer::Prompt.say("[#{Aromancer.time_display(e["updated_at"])}]: #{e["description"]}", ljust: true)
       }
@@ -363,19 +364,21 @@ module Aromancer
         Thread.main[:route] = __method__.to_sym
         case al_status
         when :created
-          Aromancer::Api.get_legends
-
-          Thread.main[:menu_options][__method__.to_sym] = [
-            {name: I18n.t("shared.key_press"), value: :key_press}
-          ]
-          Thread.main[:menu_runners][__method__.to_sym] = [
-            {value: :key_press, proc: Proc.new{
-              Aromancer::Prompt.say(I18n.t("routes.legend.returning_to_", route: :legends))
-              Aromancer::Api.set_active_legend_id(nil)
-              sleep(1)
-              legends
-            }}
-          ]
+          if al["player_count"] == 2
+            Thread.main[:menu_options][__method__.to_sym] = [
+              {name: I18n.t("shared.key_press"), value: :key_press}
+            ]
+            Thread.main[:menu_runners][__method__.to_sym] = [
+              {value: :key_press, proc: Proc.new{
+                Aromancer::Prompt.say(I18n.t("routes.legend.returning_to_", route: :legends))
+                Aromancer::Api.set_active_legend_id(nil)
+                sleep(Aromancer::Cli::RENDER_DELAY)
+                Thread.main[:route] = :legends
+              }}
+            ]
+            Aromancer::Api.get_legends
+            Aromancer::Api.load_arena
+          end
         when :complete
           Thread.main[:menu_options][__method__.to_sym] = [
             {name: I18n.t("shared.key_press"), value: :key_press}
@@ -384,7 +387,7 @@ module Aromancer
             {value: :key_press, proc: Proc.new{
               Aromancer::Prompt.say(I18n.t("routes.legend.returning_to_", route: :legends))
               Aromancer::Api.set_active_legend_id(nil)
-              legends
+              Thread.main[:route] = :legends
             }}
           ]
         end
@@ -393,10 +396,10 @@ module Aromancer
 
       arena = Aromancer::Storage.get_arena
       if arena.nil? || arena["turn_player"].nil?
-        Aromancer::Prompt.say(I18n.t("shared.waiting"))
+        Aromancer::Prompt.say(I18n.t("shared.spelling"))
         Thread.main[:menu_options][__method__.to_sym] = []
         Thread.main[:menu_runners][__method__.to_sym] = []
-        sleep(1)
+        sleep(Aromancer::Cli::RENDER_DELAY)
         Aromancer::Api.get_legends
         Aromancer::Api.load_arena
         return
@@ -535,10 +538,13 @@ module Aromancer
       legend
 
       arena = Aromancer::Storage.get_arena
-      if arena["player"].nil? || arena["player"]["words"].nil?
+      if arena.nil? ||
+        arena["player"].nil? ||
+        arena["player"]["words"].nil?
+        sleep(Aromancer::Cli::RENDER_DELAY)
+
         Aromancer::Api.load_arena
-        sleep(1)
-        main_menu
+        return
       end
       Thread.main[:menu_options][__method__.to_sym] = [
         {name: I18n.t("shared.back"), value: :back}
@@ -639,24 +645,24 @@ module Aromancer
           end
         }},
         {value: :player_word, proc: Proc.new{
-          Aromancer::Prompt.say(I18n.t("shared.waiting"))
+          Aromancer::Prompt.say(I18n.t("shared.spelling"))
           Thread.main[:menu_options][_muh_method] = []
           Thread.main[:menu_runners][_muh_method] = []
           Aromancer::Api.submit_turn(request_uuid)
           # websockets will trigger this for other player after turn is submitted
           Aromancer::Api.get_legends
           Aromancer::Api.load_arena
-          sleep(1)
+          sleep(Aromancer::Cli::RENDER_DELAY)
         }},
         {value: nil, proc: Proc.new{|o|
-          Aromancer::Prompt.say(I18n.t("shared.waiting"))
+          Aromancer::Prompt.say(I18n.t("shared.spelling"))
           Thread.main[:menu_options][_muh_method] = []
           Thread.main[:menu_runners][_muh_method] = []
           Aromancer::Api.submit_turn(request_uuid, {option_uuid: o[:uuid.to_s]})
           # websockets will trigger this for other player after turn is submitted
           Aromancer::Api.get_legends
           Aromancer::Api.load_arena
-          sleep(1)
+          sleep(Aromancer::Cli::RENDER_DELAY)
         }}
       ]
       Thread.main[:route_params] = [selected_word_id]

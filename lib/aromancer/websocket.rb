@@ -54,7 +54,7 @@ module Aromancer
             legend_id = payload["message"]["id"]
             lid = Aromancer::Storage.get_player&.symbolize_keys[:active_legend_id]
             if !lid.nil? && lid == legend_id.to_i
-              Aromancer::Storage.instance.clear_cache!
+              Aromancer::Cli.instance.should_clear_cache = true
               Aromancer::Api.get_legends
               Aromancer::Api.load_arena
               sleep(1)

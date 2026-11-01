@@ -52,8 +52,6 @@ module Aromancer
       :port
     ]
 
-    DEFAULT_SERVER = "http://127.0.0.1"
-
     DEFAULT_PREFERENCES = {
       preference_debug: false,
       preference_force_ssl: false,
@@ -61,18 +59,19 @@ module Aromancer
       preference_hide_stream: true,
     }
 
+    DEFAULT_SERVER_URL = :"http://127.0.0.1:3000".to_s
+
     attr_accessor :storage_open, :cache, :clear_flag, :parser_error
 
     def initialize
       reload!
-      ensure_default_preferences_exist
     end
 
     def ensure_default_preferences_exist
-      DEFAULT_PREFERENCES.keys.each{|d_key|
+      DEFAULT_PREFERENCES.each{|d_key, d_value|
         current_value = get_key(d_key)
         if current_value.nil? || ![TrueClass, FalseClass].include?(current_value.class)
-          set_key(d_key.to_s, DEFAULT_PREFERENCES[d_key])
+          set_key(d_key.to_s, d_value)
         end
       }
     end
@@ -82,7 +81,7 @@ module Aromancer
       @clear_flag = false
       @parser_error = nil
       clear_cache!
-      FileUtils.mkdir_p(Aromancer.home_directory)
+      Aromancer.configure_home
     end
 
     def clear_cache!
@@ -127,13 +126,15 @@ module Aromancer
     end
 
     def self.storage_filepath
-      filepath = File.join(Aromancer.home_directory, "storage.json")
+      filepath = File.join(Aromancer.home_directory, "v#{Aromancer::VERSION}.json")
 
       # create storage file if not present
       unless File.exist?(filepath)
         File.open(filepath, "w+") do |f|
-          f.write({version: Aromancer::VERSION, created: Time.now}.to_json)
+          f.write({created_at: Time.now}.to_json)
         end
+      else
+
       end
 
       filepath
@@ -201,6 +202,7 @@ module Aromancer
 
     def self.set_arena(arena_hash)
       instance.set_key(:arena, arena_hash)
+      Aromancer::UnixDom.render_arena
     end
 
     def self.get_arena
@@ -230,12 +232,12 @@ module Aromancer
           instance.set_key("server_url_#{k}", uri.select(k).first)
         }
       elsif get_server_url.nil?
-        set_server_url(DEFAULT_SERVER)
+        set_server_url(DEFAULT_SERVER_URL)
       end
     end
 
     def self.get_server_url
-      set_server_url(DEFAULT_SERVER) if URI_KEYS.all?{|k| Aromancer::Storage.instance.get_key("server_url_#{k}").nil?}
+      set_server_url(DEFAULT_SERVER_URL) if URI_KEYS.all?{|k| Aromancer::Storage.instance.get_key("server_url_#{k}").nil?}
       URI.parse(URI_KEYS.map{|k|
         c = Aromancer::Storage.instance.get_key("server_url_#{k}")
         case k
@@ -269,101 +271,104 @@ module Aromancer
     end
 
     def get_key(key)
-      key = key.to_s
+      Aromancer::Cli.instance.storage_mutex.synchronize do
+        key = key.to_s
 
-      # ensure default for key exists
-      @cache[key] = {value: nil, persisted: false} unless @cache.keys.include?(key)
-      if false && (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
-        Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
-      end
-      # return cache value if storage open or the cache value is persisted
-      return @cache[key][:value] if @storage_open || @cache[key][:persisted]
-
-      # open storage
-      @storage_open = true
-      storage_contents = {}
-      begin
-        @parser_error = nil
-        # read storage
-        storage_contents = JSON.parse(File.read(Aromancer::Storage.storage_filepath, encoding: "UTF-8"))
-      rescue StandardError => e
-        @storage_open = false
-        if @parser_error.nil?
-          @parser_error = e
-          return get_key(key)
-        else
-          raise @parser_error
+        # ensure default for key exists
+        @cache[key] = {value: nil, persisted: false} unless @cache.keys.include?(key)
+        if false && (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
+          Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
         end
-      end
+        # return cache value if storage open or the cache value is persisted
+        return @cache[key][:value] if @storage_open || @cache[key][:persisted]
 
-      # only update the cache value if present in storage
-      if storage_contents.keys.include?(key)
-        @cache[key] = {value: storage_contents[key], persisted: true}
-      else
-        @cache[key][:persisted] = false
-      end
+        # open storage
+        @storage_open = true
+        storage_contents = {}
+        begin
+          @parser_error = nil
+          # read storage
+          storage_contents = JSON.parse(File.read(Aromancer::Storage.storage_filepath, encoding: "UTF-8"))
+        rescue StandardError => e
+          @storage_open = false
+          if @parser_error.nil?
+            @parser_error = e
+            return get_key(key)
+          else
+            raise @parser_error
+          end
+        end
 
-      value = @cache[key][:value]
-      @storage_open = false
-      clear_cache! if @clear_flag
-      return value
+        # only update the cache value if present in storage
+        if storage_contents.keys.include?(key)
+          @cache[key] = {value: storage_contents[key], persisted: true}
+        else
+          @cache[key][:persisted] = false
+        end
+
+        value = @cache[key][:value]
+        @storage_open = false
+        clear_cache! if @clear_flag
+        return value
+      end
     end
 
     def set_key(key, value)
-      key = key.to_s
+      Aromancer::Cli.instance.storage_mutex.synchronize do
+        key = key.to_s
 
-      # ensure default for key exists
-      @cache[key] = {value: value, persisted: false} unless @cache.keys.include?(key)
+        # ensure default for key exists
+        @cache[key] = {value: value, persisted: false} unless @cache.keys.include?(key)
 
-      # assign new cache value and set persisted to false
-      @cache[key][:value] = value
-      @cache[key][:persisted] = false
+        # assign new cache value and set persisted to false
+        @cache[key][:value] = value
+        @cache[key][:persisted] = false
 
-      if @storage_open && (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
-        puts Thread.current.backtrace
-        Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
-      end
-      # return if storage open
-      # non-persisted cache values update next cycle
-      return if @storage_open
-
-      # open storage
-      @storage_open = true
-      storage_contents = {}
-      begin
-        @parser_error = nil
-        # read storage
-        storage_contents = JSON.parse(File.read(Aromancer::Storage.storage_filepath, encoding: "UTF-8"))
-      rescue StandardError => e
-        @storage_open = false
-        if @parser_error.nil?
-          @parser_error = e
-          return get_key(key)
-        else
-          raise @parser_error
+        if @storage_open && (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
+          Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
         end
+        # return if storage open
+        # non-persisted cache values update next cycle
+        return if @storage_open
+
+        # open storage
+        @storage_open = true
+        storage_contents = {}
+        begin
+          @parser_error = nil
+          # read storage
+          storage_contents = JSON.parse(File.read(Aromancer::Storage.storage_filepath, encoding: "UTF-8"))
+        rescue StandardError => e
+          @storage_open = false
+          if @parser_error.nil?
+            @parser_error = e
+            return get_key(key)
+          else
+            raise @parser_error
+          end
+        end
+
+        # update storage and cache
+        ([key] + @cache.keys.select{|k|
+          !@cache[k][:persisted]
+        }).each{|k|
+          storage_contents[k] = @cache[k][:value]
+          @cache[k][:persisted] = true
+        }
+
+        # write storage
+        File.open(Aromancer::Storage.storage_filepath, "w+") do |f|
+          f.write(storage_contents.to_json)
+        end
+
+        if (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
+          Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
+        end
+
+        # close storage
+        @storage_open = false
+        clear_cache! if @clear_flag
       end
-
-      # update storage and cache
-      ([key] + @cache.keys.select{|k|
-        !@cache[k][:persisted]
-      }).each{|k|
-        storage_contents[k] = @cache[k][:value]
-        @cache[k][:persisted] = true
-      }
-
-      # write storage
-      File.open(Aromancer::Storage.storage_filepath, "w+") do |f|
-        f.write(storage_contents.to_json)
-      end
-
-      if (@cache[:preference_debug.to_s] || {value: DEFAULT_PREFERENCES[:preference_debug]})[:value]
-        Aromancer::Prompt.say("#{__method__} > @cache[#{key}]=#{@cache[key]}")
-      end
-
-      # close storage
-      @storage_open = false
-      clear_cache! if @clear_flag
     end
   end
 end

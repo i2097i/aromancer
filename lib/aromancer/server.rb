@@ -128,7 +128,7 @@ module Aromancer
 
     def self.get_arena
       legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
-      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
+      return InternalError.build(StandardError.new("#{__method__}: no active legend")) if legend_id.nil?
 
       begin
         Faraday.new(
@@ -142,13 +142,14 @@ module Aromancer
 
     def self.get_stream(count = nil)
       legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
-      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
+      return InternalError.build(StandardError.new("#{__method__}: no active legend")) if legend_id.nil?
 
+      count_param = count.nil? || count.to_i <= 0 ? "" : "?last_count=#{count}"
       begin
         Faraday.new(
           url: Aromancer::Storage.get_server_url,
           headers: HEADERS.merge(auth_header),
-        ).get("/legends/#{legend_id}/stream?count=#{count || nil}")
+        ).get("/legends/#{legend_id}/stream#{count_param}")
       rescue StandardError => e
         InternalError.build(e)
       end
@@ -156,7 +157,7 @@ module Aromancer
 
     def self.get_word_possibilities(selected_word_id)
       legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
-      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
+      return InternalError.build(StandardError.new("#{__method__}: no active legend")) if legend_id.nil?
 
       begin
         Faraday.new(
@@ -170,7 +171,7 @@ module Aromancer
 
     def self.submit_turn(request_uuid, params = {})
       legend_id = (Aromancer::Storage.get_player || {})["active_legend_id"]
-      return InternalError.build(StandardError.new("no active legend")) if legend_id.nil?
+      return InternalError.build(StandardError.new("#{__method__}: no active legend")) if legend_id.nil?
 
       begin
         Faraday.new(

@@ -28,8 +28,10 @@ module Aromancer
       if response.status == 401
         Aromancer::Storage.set_signed_out_flag(true)
         player = Aromancer::Storage.get_player
-        player["api_key"] = nil
-        Aromancer::Storage.set_player(player)
+        unless player.nil?
+          player["api_key"] = nil
+          Aromancer::Storage.set_player(player)
+        end
       end
     end
 
@@ -130,7 +132,7 @@ module Aromancer
         player["active_legend_id"] = active_legend_id
         Aromancer::Storage.set_player(player)
       end
-      Aromancer::Storage.instance.clear_cache!
+      Aromancer::Cli.instance.should_clear_cache = true
       result = Aromancer::Server.update_player({player: {
         active_legend_id: active_legend_id,
         status: active_legend_id.nil? ? :lobby : :playing
